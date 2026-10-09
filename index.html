@@ -2,30 +2,66 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; overflow: hidden; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; padding: 0; }
         .topo { background: #1e293b; color: white; padding: 10px; text-align: center; }
-        .main-container { display: flex; height: calc(100vh - 50px); }
-        #canvas-container { flex: 2; position: relative; background: white; }
-        .feedback-mestre { 
-            position: absolute; bottom: 0; width: 100%; padding: 20px; 
-            font-size: 22px; font-weight: bold; text-align: center; 
-            border-top: 4px solid #cbd5e1; box-sizing: border-box;
+        .topo h2 { margin: 0; font-size: 1.1rem; }
+
+        /* No Desktop: lado a lado. No Mobile: um abaixo do outro */
+        .main-container { 
+            display: flex; 
+            flex-direction: column; 
+            min-height: calc(100vh - 42px); 
         }
-        .painel-lateral { flex: 0.7; background: #ffffff; border-left: 2px solid #e2e8f0; padding: 20px; overflow-y: auto; }
-        .input-box { display: flex; flex-direction: column; font-size: 14px; margin-bottom: 12px; font-weight: 600; }
-        .card-fisica { background: #f8fafc; border-radius: 8px; padding: 15px; border: 1px solid #cbd5e1; }
-        button { width: 100%; padding: 12px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; }
+
+        #canvas-container { 
+            width: 100%; 
+            height: 50vh; 
+            position: relative; 
+            background: #ffffff; 
+            overflow: hidden;
+            touch-action: none; /* Evita rolar a página enquanto arrasta o bloco */
+        }
+
+        .feedback-mestre { 
+            position: absolute; bottom: 0; width: 100%; padding: 10px; 
+            font-size: 16px; font-weight: bold; text-align: center; 
+            border-top: 2px solid #cbd5e1; background: #f1f5f9;
+        }
+
+        .painel-lateral { 
+            width: 100%; 
+            background: #ffffff; 
+            border-top: 2px solid #e2e8f0; 
+            padding: 15px; 
+        }
+
+        .input-box { display: flex; flex-direction: column; font-size: 14px; margin-bottom: 10px; font-weight: 600; }
+        .input-box input { margin-top: 5px; }
+        .card-fisica { background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #cbd5e1; margin-top: 15px; }
+        .card-fisica p { margin: 4px 0; font-size: 14px; }
+        button { width: 100%; padding: 12px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; }
+
+        /* Ajuste para telas maiores (Desktop/Tablet em Deitado) */
+        @media (min-width: 768px) {
+            .main-container { flex-direction: row; height: calc(100vh - 42px); }
+            #canvas-container { flex: 2; height: auto; }
+            .painel-lateral { flex: 0.8; border-top: none; border-left: 2px solid #e2e8f0; overflow-y: auto; }
+            .topo h2 { font-size: 1.5rem; }
+            .feedback-mestre { font-size: 20px; padding: 15px; }
+        }
     </style>
 </head>
 <body>
 
-<div class="topo"><h2 style="margin:0">🔬 Plano Inclinado: Laboratório de Dinâmica</h2></div>
+<div class="topo"><h2>🔬 Plano Inclinado: Laboratório de Dinâmica</h2></div>
 
 <div class="main-container">
     <div id="canvas-container">
-        <div id="msgMestre" class="feedback-mestre">Clique e arraste o bloco!</div>
+        <div id="msgMestre" class="feedback-mestre">Clique/Toque e arraste o bloco!</div>
     </div>
 
     <div class="painel-lateral">
@@ -34,9 +70,9 @@
         <div class="input-box">Força Aplicada (F): <input type="range" id="fext" min="-250" max="250" value="0"> <span id="lFext">0 N</span></div>
         <button onclick="resetar()">Parar Bloco</button>
         
-        <div class="card-fisica" style="margin-top: 20px;">
-            <p>Px: <span id="valPx">0</span> N | Fat Máx: <span id="valFatMax">0</span> N</p>
-            <p>Resultante: <span id="valFres">0</span> N</p>
+        <div class="card-fisica">
+            <p><strong>Px:</strong> <span id="valPx">0</span> N | <strong>Fat Máx:</strong> <span id="valFatMax">0</span> N</p>
+            <p><strong>Resultante:</strong> <span id="valFres">0</span> N</p>
         </div>
     </div>
 </div>
@@ -48,14 +84,21 @@ let arrastando = false;
 
 function setup() {
     let container = document.getElementById('canvas-container');
-    let cnv = createCanvas(container.offsetWidth, container.offsetHeight - 80);
+    let cnv = createCanvas(container.offsetWidth, container.offsetHeight);
     cnv.parent('canvas-container');
+    pixelDensity(window.devicePixelRatio || 1); // Garante nitidez absoluta em telas Retina/AMOLED
+}
+
+function windowResized() {
+    let container = document.getElementById('canvas-container');
+    resizeCanvas(container.offsetWidth, container.offsetHeight);
 }
 
 function draw() {
     background(255);
     
-    let ang = radians(float(document.getElementById('ang').value));
+    let angDeg = float(document.getElementById('ang').value);
+    let ang = radians(angDeg);
     let mue = float(document.getElementById('mue').value);
     let fext = float(document.getElementById('fext').value);
     
@@ -69,14 +112,12 @@ function draw() {
     let msg = document.getElementById('msgMestre');
     
     if (arrastando) {
-        // Lógica de arraste simplificada para evitar que o bloco suma
-        let d = dist(mouseX, mouseY, 50, height-20);
+        let d = dist(mouseX, mouseY, 50, height - 20);
         posX = d - 30; 
         vel = 0; acel = 0;
         msg.innerText = "📍 POSICIONANDO...";
         msg.style.background = "#ddd6fe";
     } else {
-        // Lógica de Movimento
         if (abs(vel) < 0.1) {
             if (abs(fMotora) > fatMax) {
                 fat = fatMax * (fMotora > 0 ? -1 : 1);
@@ -96,11 +137,10 @@ function draw() {
         posX += vel;
     }
 
-    // Segurança: Não deixa o bloco fugir da rampa
-    posX = constrain(posX, 0, width);
+    posX = constrain(posX, 0, width - 60);
 
     // Atualiza Painel
-    document.getElementById('lAng').innerText = document.getElementById('ang').value + "°";
+    document.getElementById('lAng').innerText = angDeg + "°";
     document.getElementById('lMue').innerText = mue.toFixed(2);
     document.getElementById('lFext').innerText = fext + " N";
     document.getElementById('valPx').innerText = px.toFixed(1);
@@ -108,6 +148,7 @@ function draw() {
     document.getElementById('valFres').innerText = (fext - px).toFixed(1);
 
     // --- DESENHO ---
+    push();
     translate(50, height - 20);
     
     // Rampa
@@ -115,7 +156,7 @@ function draw() {
     triangle(0, 0, width, 0, width, -width * tan(ang));
     
     rotate(-ang);
-    stroke(0); strokeWeight(4);
+    stroke(0); strokeWeight(3);
     line(0, 0, width * 2, 0); // Superfície
 
     // Bloco
@@ -123,31 +164,37 @@ function draw() {
     stroke(0); strokeWeight(2);
     rect(posX, -40, 60, 40, 5);
 
-    // Vetores (Apenas se não estiver arrastando)
+    // Vetores
     if (!arrastando) {
-        desenharSeta(posX+30, -20, fext, [0, 200, 0], "F");
-        desenharSeta(posX+30, -20, -px, [255, 0, 0], "Px");
+        desenharSeta(posX + 30, -20, fext, [0, 180, 0], "F");
+        desenharSeta(posX + 30, -20, -px, [225, 0, 0], "Px");
     }
+    pop();
 }
 
 function desenharSeta(x, y, forca, cor, label) {
-    if (abs(forca) < 5) return;
-    stroke(cor); fill(cor);
-    let tam = forca * 0.8;
+    if (abs(forca) < 2) return;
+    stroke(cor); fill(cor); strokeWeight(2);
+    let tam = constrain(forca * 0.6, -120, 120);
     line(x, y, x + tam, y);
-    push(); translate(x+tam, y); rotate(forca > 0 ? 0 : PI);
-    triangle(0,0, -8, -4, -8, 4); pop();
+    push(); translate(x + tam, y); rotate(forca > 0 ? 0 : PI);
+    triangle(0, 0, -8, -4, -8, 4); pop();
 }
 
-function mousePressed() {
-    // Verifica se o clique foi "perto" do bloco
-    let ang = radians(float(document.getElementById('ang').value));
-    let mx = (mouseX - 50) * cos(ang) - (mouseY - (height - 20)) * -sin(ang);
-    if (abs(mx - (posX + 30)) < 60) {
-        arrastando = true;
+function touchStarted() { acaoClique(); }
+function mousePressed() { acaoClique(); }
+
+function acaoClique() {
+    if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+        let ang = radians(float(document.getElementById('ang').value));
+        let mx = (mouseX - 50) * cos(ang) - (mouseY - (height - 20)) * -sin(ang);
+        if (abs(mx - (posX + 30)) < 80) {
+            arrastando = true;
+        }
     }
 }
 
+function touchEnded() { arrastando = false; }
 function mouseReleased() { arrastando = false; }
 function resetar() { vel = 0; acel = 0; }
 </script>
