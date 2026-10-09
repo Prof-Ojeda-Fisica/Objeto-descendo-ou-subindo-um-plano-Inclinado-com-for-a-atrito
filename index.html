@@ -10,7 +10,7 @@
         .topo { background: #1e293b; color: white; padding: 10px; text-align: center; }
         .topo h2 { margin: 0; font-size: 1.1rem; }
 
-        /* No Desktop: lado a lado. No Mobile: um abaixo do outro */
+        /* Responsividade: Desktop em linha / Mobile empilhado */
         .main-container { 
             display: flex; 
             flex-direction: column; 
@@ -23,7 +23,7 @@
             position: relative; 
             background: #ffffff; 
             overflow: hidden;
-            touch-action: none; /* Evita rolar a página enquanto arrasta o bloco */
+            touch-action: none;
         }
 
         .feedback-mestre { 
@@ -45,7 +45,6 @@
         .card-fisica p { margin: 4px 0; font-size: 14px; }
         button { width: 100%; padding: 12px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; }
 
-        /* Ajuste para telas maiores (Desktop/Tablet em Deitado) */
         @media (min-width: 768px) {
             .main-container { flex-direction: row; height: calc(100vh - 42px); }
             #canvas-container { flex: 2; height: auto; }
@@ -86,7 +85,7 @@ function setup() {
     let container = document.getElementById('canvas-container');
     let cnv = createCanvas(container.offsetWidth, container.offsetHeight);
     cnv.parent('canvas-container');
-    pixelDensity(window.devicePixelRatio || 1); // Garante nitidez absoluta em telas Retina/AMOLED
+    pixelDensity(window.devicePixelRatio || 1);
 }
 
 function windowResized() {
@@ -112,8 +111,12 @@ function draw() {
     let msg = document.getElementById('msgMestre');
     
     if (arrastando) {
-        let d = dist(mouseX, mouseY, 50, height - 20);
-        posX = d - 30; 
+        // Converte a posição do ponteiro/toque para o plano da rampa ao arrastar
+        let dx = mouseX - 50;
+        let dy = mouseY - (height - 20);
+        let rx = dx * cos(ang) - dy * sin(ang);
+        
+        posX = rx - 30; 
         vel = 0; acel = 0;
         msg.innerText = "📍 POSICIONANDO...";
         msg.style.background = "#ddd6fe";
@@ -181,16 +184,34 @@ function desenharSeta(x, y, forca, cor, label) {
     triangle(0, 0, -8, -4, -8, 4); pop();
 }
 
-function touchStarted() { acaoClique(); }
-function mousePressed() { acaoClique(); }
-
+/* LÓGICA DE CLIQUE E ARRASTE CORRIGIDA */
 function acaoClique() {
+    let ang = radians(float(document.getElementById('ang').value));
+    
+    let dx = mouseX - 50;
+    let dy = mouseY - (height - 20);
+    
+    // Matriz de rotação inversa para alinhar com o bloco
+    let rx = dx * cos(ang) - dy * sin(ang);
+    let ry = dx * sin(ang) + dy * cos(ang);
+    
+    // Verifica caixa delimitadora do bloco com folga para toque fácil
+    if (rx >= posX - 15 && rx <= posX + 75 && ry >= -55 && ry <= 15) {
+        arrastando = true;
+        vel = 0;
+        acel = 0;
+    }
+}
+
+function touchStarted() { 
     if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
-        let ang = radians(float(document.getElementById('ang').value));
-        let mx = (mouseX - 50) * cos(ang) - (mouseY - (height - 20)) * -sin(ang);
-        if (abs(mx - (posX + 30)) < 80) {
-            arrastando = true;
-        }
+        acaoClique(); 
+    }
+}
+
+function mousePressed() { 
+    if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+        acaoClique(); 
     }
 }
 
